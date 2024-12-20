@@ -170,6 +170,11 @@ public interface HttpBinding {
     boolean isMapHttpMessageFormUrlEncodedBody();
 
     /**
+     * Whether to allow converting the Exchange Body from a Form URL Encoded Body to a Java Map
+     */
+    boolean isConvertExchangeFormUrlEncodedBodyToMap();
+
+    /**
      * Whether to eager check whether the HTTP requests has content if the content-length header is 0 or not present.
      * This can be turned on in case HTTP clients do not send streamed data.
      */
@@ -245,6 +250,13 @@ public interface HttpBinding {
      * mapped to HTTP
      */
     void setMapHttpMessageFormUrlEncodedBody(boolean mapHttpMessageFormUrlEncodedBody);
+
+    /**
+     * Whether to allow converting the Exchange Body from a Form URL Encoded Body to a Java Map
+     * <p/>
+     * This is by default turned on. If you disable this then the Exchange body will remain a String.
+     */
+    void setConvertExchangeFormUrlEncodedBodyToMap(boolean convertExchangeFormUrlEncodedBodyToMap);
 
     /**
      * Whitelist of accepted filename extensions for accepting uploaded files.

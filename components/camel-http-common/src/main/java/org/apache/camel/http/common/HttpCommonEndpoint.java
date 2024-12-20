@@ -120,17 +120,21 @@ public abstract class HttpCommonEndpoint extends DefaultEndpoint
                             + " This can be turned on in case HTTP clients do not send streamed data.")
     boolean eagerCheckContentAvailable;
     @UriParam(label = "consumer,advanced", defaultValue = "true",
-              description = "If this option is true then IN exchange Body of the exchange will be mapped to HTTP body."
-                            + " Setting this to false will avoid the HTTP mapping.")
+              description = "If this option is true then the body of the HTTP request will be mapped to the exchange body."
+                            + " Setting this to false will disable this mapping.")
     boolean mapHttpMessageBody = true;
     @UriParam(label = "consumer,advanced", defaultValue = "true",
-              description = "If this option is true then IN exchange Headers of the exchange will be mapped to HTTP headers."
-                            + " Setting this to false will avoid the HTTP Headers mapping.")
+              description = "If this option is true then the headers of the HTTP request will be mapped to the exchange headers."
+                            + " Setting this to false will disable this mapping.")
     boolean mapHttpMessageHeaders = true;
     @UriParam(label = "consumer,advanced", defaultValue = "true",
-              description = "If this option is true then IN exchange Form Encoded body of the exchange will be mapped to HTTP."
-                            + " Setting this to false will avoid the HTTP Form Encoded body mapping.")
+              description = "If this option is true and HTTP request body/header mapping is enabled, then after mapping the HTTP request form body (application/x-www-form-urlencoded)"
+                            + " the key/value pairs will also be mapped to the exchange headers. Setting this to false will disable this mapping.")
     boolean mapHttpMessageFormUrlEncodedBody = true;
+    @UriParam(label = "consumer,advanced", defaultValue = "true",
+              description = "If this option is true and HTTP request body mapping is enabled, then after mapping the HTTP request form body (application/x-www-form-urlencoded)"
+                            + " the key/value pairs from the exchange body will be converted to a Java Map. Setting this to false will disable this conversion.")
+    boolean convertExchangeFormUrlEncodedBodyToMap = true;
     @UriParam(label = "producer,advanced", defaultValue = "200-299",
               description = "The status codes which are considered a success response. The values are inclusive. Multiple ranges can be"
                             + " defined, separated by comma, e.g. 200-204,209,301-304. Each range must be a single number or from-to with the dash included.")
@@ -284,6 +288,7 @@ public abstract class HttpCommonEndpoint extends DefaultEndpoint
             httpBinding.setMapHttpMessageBody(isMapHttpMessageBody());
             httpBinding.setMapHttpMessageHeaders(isMapHttpMessageHeaders());
             httpBinding.setMapHttpMessageFormUrlEncodedBody(isMapHttpMessageFormUrlEncodedBody());
+            httpBinding.setConvertExchangeFormUrlEncodedBodyToMap(isConvertExchangeFormUrlEncodedBodyToMap());
         }
         return httpBinding;
     }
@@ -576,7 +581,7 @@ public abstract class HttpCommonEndpoint extends DefaultEndpoint
     }
 
     /**
-     * If this option is true, the IN exchange body will be mapped to HTTP
+     * If this option is true then the body of the HTTP request will be mapped to the exchange body.
      */
     public void setMapHttpMessageBody(boolean mapHttpMessageBody) {
         this.mapHttpMessageBody = mapHttpMessageBody;
@@ -587,7 +592,7 @@ public abstract class HttpCommonEndpoint extends DefaultEndpoint
     }
 
     /**
-     * If this option is true, the IN exchange headers will be mapped to HTTP Headers
+     * If this option is true then the headers of the HTTP request will be mapped to the exchange headers.
      */
     public void setMapHttpMessageHeaders(boolean mapHttpMessageHeaders) {
         this.mapHttpMessageHeaders = mapHttpMessageHeaders;
@@ -598,10 +603,23 @@ public abstract class HttpCommonEndpoint extends DefaultEndpoint
     }
 
     /**
-     * If this option is true then IN exchange Form Encoded body will be mapped to HTTP
+     * If this option is true then the key/value pairs from HTTP request form url encoded body will be mapped to the
+     * exchange headers.
      */
     public void setMapHttpMessageFormUrlEncodedBody(boolean mapHttpMessageFormUrlEncodedBody) {
         this.mapHttpMessageFormUrlEncodedBody = mapHttpMessageFormUrlEncodedBody;
+    }
+
+    public boolean isConvertExchangeFormUrlEncodedBodyToMap() {
+        return mapHttpMessageFormUrlEncodedBody;
+    }
+
+    /**
+     * If this option is true then the key/value pairs from the exchange form url encoded body will be converted to a
+     * Java Map.
+     */
+    public void setConvertExchangeFormUrlEncodedBodyToMap(boolean convertExchangeFormUrlEncodedBodyToMap) {
+        this.convertExchangeFormUrlEncodedBodyToMap = convertExchangeFormUrlEncodedBodyToMap;
     }
 
     public boolean isAsync() {

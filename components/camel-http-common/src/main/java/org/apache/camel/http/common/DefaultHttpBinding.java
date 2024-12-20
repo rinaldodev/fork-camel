@@ -28,6 +28,7 @@ import java.net.URLDecoder;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
@@ -91,6 +92,8 @@ public class DefaultHttpBinding implements HttpBinding {
     private boolean mapHttpMessageBody = true;
     private boolean mapHttpMessageHeaders = true;
     private boolean mapHttpMessageFormUrlEncodedBody = true;
+    private boolean convertExchangeFormUrlEncodedBodyToMap = true;
+
     private HeaderFilterStrategy headerFilterStrategy = new org.apache.camel.http.base.HttpHeaderFilterStrategy();
     private String fileNameExtWhitelist;
 
@@ -124,7 +127,7 @@ public class DefaultHttpBinding implements HttpBinding {
         if (mapHttpMessageHeaders) {
             readHeaders(request, message);
         }
-        if (mapHttpMessageFormUrlEncodedBody) {
+        if (mapHttpMessageFormUrlEncodedBody || convertExchangeFormUrlEncodedBodyToMap) {
             try {
                 readFormUrlEncodedBody(request, message);
             } catch (UnsupportedEncodingException e) {
@@ -257,49 +260,59 @@ public class DefaultHttpBinding implements HttpBinding {
     protected void readFormUrlEncodedBody(HttpServletRequest request, Message message) throws UnsupportedEncodingException {
         LOG.trace("readFormUrlEncodedBody {}", request);
         // should we extract key=value pairs from form bodies (application/x-www-form-urlencoded)
-        // and map those to Camel headers
-        if (mapHttpMessageBody && mapHttpMessageHeaders) {
-            LOG.trace("HTTP method {} with Content-Type {}", request.getMethod(), request.getContentType());
-            Map<String, Object> headers = message.getHeaders();
-            Boolean flag = message.getHeader(Exchange.SKIP_WWW_FORM_URLENCODED, Boolean.class);
-            boolean skipWwwFormUrlEncoding = flag != null ? flag : false;
-            if (request.getMethod().equals("POST") && request.getContentType() != null
-                    && request.getContentType().startsWith(HttpConstants.CONTENT_TYPE_WWW_FORM_URLENCODED)
-                    && !skipWwwFormUrlEncoding) {
-                String charset = request.getCharacterEncoding();
-                if (charset == null) {
-                    charset = "UTF-8";
-                }
+        // and map those to Camel headers and/or convert the body to a Java Map
 
-                // lets parse the body
-                Object body = message.getBody();
-                // reset the stream cache if the body is the instance of StreamCache
-                if (body instanceof StreamCache streamCache) {
-                    streamCache.reset();
-                }
+        LOG.trace("HTTP method {} with Content-Type {}", request.getMethod(), request.getContentType());
+        Map<String, Object> newExchangeBody = new HashMap<>();
 
-                // Push POST form params into the headers to retain compatibility with DefaultHttpBinding
-                String text = message.getBody(String.class);
-                if (org.apache.camel.util.ObjectHelper.isNotEmpty(text)) {
-                    for (String param : text.split("&")) {
-                        String[] pair = param.split("=", 2);
-                        if (pair.length == 2) {
-                            String name = URLDecoder.decode(pair[0], charset);
-                            String value = URLDecoder.decode(pair[1], charset);
+        Map<String, Object> headers = message.getHeaders();
+        Boolean flag = message.getHeader(Exchange.SKIP_WWW_FORM_URLENCODED, Boolean.class);
+        boolean skipWwwFormUrlEncoding = flag != null ? flag : false;
+        if (request.getMethod().equals("POST") && request.getContentType() != null
+                && request.getContentType().startsWith(HttpConstants.CONTENT_TYPE_WWW_FORM_URLENCODED)
+                && !skipWwwFormUrlEncoding) {
+            String charset = request.getCharacterEncoding();
+            if (charset == null) {
+                charset = "UTF-8";
+            }
+
+            // lets parse the body
+            Object body = message.getBody();
+            // reset the stream cache if the body is the instance of StreamCache
+            if (body instanceof StreamCache streamCache) {
+                streamCache.reset();
+            }
+
+            // Push POST form params into the headers to retain compatibility with DefaultHttpBinding
+            String text = message.getBody(String.class);
+            if (org.apache.camel.util.ObjectHelper.isNotEmpty(text)) {
+                for (String param : text.split("&")) {
+                    String[] pair = param.split("=", 2);
+                    if (pair.length == 2) {
+                        String name = URLDecoder.decode(pair[0], charset);
+                        String value = URLDecoder.decode(pair[1], charset);
+                        if (mapHttpMessageBody && mapHttpMessageHeaders) {
                             if (headerFilterStrategy != null
                                     && !headerFilterStrategy.applyFilterToExternalHeaders(name, value, message.getExchange())) {
                                 HttpHelper.appendHeader(headers, name, value);
                             }
-                        } else {
-                            throw new IllegalArgumentException("Invalid parameter, expected to be a pair but was " + param);
                         }
+                        if (convertExchangeFormUrlEncodedBodyToMap) {
+                            newExchangeBody.put(name, value);
+                        }
+                    } else {
+                        throw new IllegalArgumentException("Invalid parameter, expected to be a pair but was " + param);
                     }
                 }
+            }
 
-                // reset the stream cache if the body is the instance of StreamCache
-                if (body instanceof StreamCache streamCache) {
-                    streamCache.reset();
-                }
+            if (!newExchangeBody.isEmpty()) {
+                message.setBody(newExchangeBody);
+            }
+
+            // reset the stream cache if the body is the instance of StreamCache
+            if (body instanceof StreamCache streamCache) {
+                streamCache.reset();
             }
         }
     }
@@ -737,6 +750,16 @@ public class DefaultHttpBinding implements HttpBinding {
     @Override
     public void setMapHttpMessageFormUrlEncodedBody(boolean mapHttpMessageFormUrlEncodedBody) {
         this.mapHttpMessageFormUrlEncodedBody = mapHttpMessageFormUrlEncodedBody;
+    }
+
+    @Override
+    public boolean isConvertExchangeFormUrlEncodedBodyToMap() {
+        return convertExchangeFormUrlEncodedBodyToMap;
+    }
+
+    @Override
+    public void setConvertExchangeFormUrlEncodedBodyToMap(boolean convertExchangeFormUrlEncodedBodyToMap) {
+        this.convertExchangeFormUrlEncodedBodyToMap = convertExchangeFormUrlEncodedBodyToMap;
     }
 
     @Override
